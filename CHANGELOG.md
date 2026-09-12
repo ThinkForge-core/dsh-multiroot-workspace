@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- `src/client/tree.ts` imported the Session Controller types with an inline-specifier form (`import { type A, type B } from '...'`), which the bundler lowered to a side-effect import of `@deepseek-ai/dsh-api-session-controller/client` and inlined that package's own self-registering client bundle. At runtime the module table then saw `@deepseek-ai/dsh-api-session-controller` register twice and refused to boot with `client-modules: duplicate factory registration ... (bundle executed twice without invalidate?)`. Switching the declaration to `import type { ... }` drops it from the graph; the bundle now registers only `dsh-multiroot-workspace` (286 kB → 147 kB) while keeping the same five platform rows.
+
 ## [0.1.5-rc.2] - 2026-09-12
 
 ### Changed

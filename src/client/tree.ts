@@ -3,8 +3,8 @@
  * Unassigned Sessions trail under Ungrouped; only the selected blank Session
  * remains visible.
  */
-import {
-  type SessionListState, type SessionSearchResultItem, type SessionSummary,
+import type {
+  SessionListState, SessionSearchResultItem, SessionSummary,
 } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type {
