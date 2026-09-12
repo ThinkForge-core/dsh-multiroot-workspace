@@ -14,7 +14,7 @@ import clsx from 'clsx'
 import {
   Button, IconBranchOutline16, IconCloseFill14, IconPersonalizationOutline16,
   IconProjectAddOutline16, IconSearchOutline16, Menu, Modal, Tooltip,
-} from '../vendor/primitives/index.ts'
+} from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
   SessionId, SessionListState, SessionSearchResultItem, WorkspaceId, WorkspaceView,
 } from '@deepseek-ai/dsh-client-runtime/client'
@@ -23,11 +23,11 @@ import type { SessionNode, SessionOrderBy } from './tree.ts'
 import { deriveFlat, deriveGroups, deriveSearchResults, UNGROUPED_KEY } from './tree.ts'
 import { ProjectRowItem, SearchResultItem, SessionNodeItem } from './rows/Rows.tsx'
 import { FLAT_SESSION_ORDER_KEY } from './stores.ts'
-import { useMultirootRecords } from '../multiroot/api.ts'
-import { joinMultiroot } from '../multiroot/join.ts'
-import type { MultirootMetadata } from '../multiroot/types.ts'
-import type { MultirootWorkspaceRecord } from '../multiroot/types.ts'
-import { MultirootDialog } from '../multiroot/Dialogs.tsx'
+import { useMultirootRecords } from './multiroot/api.ts'
+import { joinMultiroot } from './multiroot/join.ts'
+import type { MultirootMetadata } from './multiroot/types.ts'
+import type { MultirootWorkspaceRecord } from './multiroot/types.ts'
+import { MultirootDialog } from './multiroot/Dialogs.tsx'
 import { WorkspacePickFlow } from './WorkspacePicker.tsx'
 import css from './WorkspaceBrowser.module.css'
 
@@ -223,6 +223,8 @@ type SessionTreeProps = Pick<
   'useSessions' | 'startSession' | 'open' | 'forkSession'
   | 'insertWorkspaceBefore' | 'insertSessionBefore' | 't'
 > & {
+  /** Host account home for POSIX hover-path abbreviation. */
+  home?: string | undefined
   workspaces: readonly WorkspaceView[]
   /** Explicit persisted zero-or-five-session state by Workspace group. */
   groupExpansion: Readonly<Record<string, boolean>>
@@ -261,7 +263,7 @@ function SessionTree({
   insertWorkspaceBefore, insertSessionBefore, orderBy,
   multirootMetadata, onManageRequest,
   groupExpansion, setGroupExpanded,
-  sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, t,
+  sessionOrderByAccount, sessionUpdatedAtByAccount, syncSessionOrderAccount, setSessionOrder, home, t,
 }: SessionTreeProps) {
   const list = useSessions(s => s)
   const current = list.current
@@ -460,6 +462,7 @@ function SessionTree({
             >
               <ProjectRowItem
                 group={group}
+                home={home}
                 multiroot={group.workspaceId === undefined
                   ? undefined
                   : multirootMetadata.get(group.workspaceId as string)}
@@ -773,27 +776,53 @@ export function WorkspaceBrowser({
   createWorkspace,
   searchSessions,
   searchResultLimit,
-  multirootEnabled,
   useDirectoryFlow,
+  useHostDescription,
   renderSlot,
   t,
 }: WorkspaceBrowserProps) {
+  const home = useHostDescription(description => description?.home)
   const workspaces = useWorkspaces(state => state.items)
-  const multirootQuery = useMultirootRecords(multirootEnabled === true)
-  const multirootJoin = useMemo(
-    () => joinMultiroot(workspaces, multirootQuery.records),
-    [multirootQuery.records, workspaces],
-  )
   const workspacePhase = useWorkspaces(state => state.phase)
   const archivedSessionIds = useWorkspaces(state => state.archivedSessionIds)
   // Live occupancy of this surface's directory-flow hole (the same source the
   // flow reads): a composition without a picking affordance can add nothing.
   const directoryFlowAvailable = useDirectoryFlow(occupied => occupied)
+  const multirootQuery = useMultirootRecords()
+  const multirootJoin = useMemo(
+    () => joinMultiroot(workspaces, multirootQuery.records),
+    [multirootQuery.records, workspaces],
+  )
   const groupBy = useStore(s => s.groupBy)
   const orderBy = useStore(s => s.orderBy)
   const groupExpansion = useStore(s => s.groupExpansion)
   const sessionOrderByAccount = useStore(s => s.sessionOrderByAccount)
   const sessionUpdatedAtByAccount = useStore(s => s.sessionUpdatedAtByAccount)
+  const currentBlankSessionId = useSessions((state) => {
+    const current = state.current
+    return current !== undefined && state.byId[current]?.blank === true ? current : undefined
+  })
+  const currentBlankAccount = currentBlankSessionId === undefined
+    ? undefined
+    : (workspaces.find(workspace => workspace.sessionIds.includes(currentBlankSessionId))
+      ?.workspaceId as string | undefined) ?? UNGROUPED_KEY
+  const promotedBlank = useRef<{ sessionId: SessionId; accountKey: string } | undefined>(undefined)
+  useEffect(() => {
+    if (currentBlankSessionId === undefined || currentBlankAccount === undefined) {
+      promotedBlank.current = undefined
+      return
+    }
+    if (promotedBlank.current?.sessionId === currentBlankSessionId
+      && promotedBlank.current.accountKey === currentBlankAccount) return
+    promotedBlank.current = { sessionId: currentBlankSessionId, accountKey: currentBlankAccount }
+    for (const accountKey of new Set([currentBlankAccount, FLAT_SESSION_ORDER_KEY])) {
+      const previous = sessionOrderByAccount[accountKey] ?? []
+      actions.setSessionOrder(accountKey, [
+        currentBlankSessionId,
+        ...previous.filter(id => id !== currentBlankSessionId),
+      ])
+    }
+  }, [actions.setSessionOrder, currentBlankAccount, currentBlankSessionId, sessionOrderByAccount])
   useEffect(() => {
     if (workspacePhase !== 'ready') return
     actions.retainAccountKeys([
@@ -840,8 +869,13 @@ export function WorkspaceBrowser({
     searchInput.current?.focus({ preventScroll: true })
   }, [wide, searchExpanded, searchOnExpand])
 
+  // Outside-click dismissal stays off while the rail gesture is in flight
+  // (searchOnExpand): the rail click flips the shell wide and mounts this
+  // listener during its own dispatch, then keeps bubbling to document with
+  // the now-unmounted rail button as its target — outside searchRoot, so the
+  // listener would dismiss the search that click just opened.
   useEffect(() => {
-    if (!wide || !searchExpanded) return
+    if (!wide || !searchExpanded || searchOnExpand) return
     const onClick = (event: MouseEvent): void => {
       if (!(event.target instanceof Node) || searchRoot.current?.contains(event.target) === true) return
       searchInput.current?.blur()
@@ -850,7 +884,7 @@ export function WorkspaceBrowser({
     }
     document.addEventListener('click', onClick)
     return () => { document.removeEventListener('click', onClick) }
-  }, [normalizedQuery, wide, searchExpanded])
+  }, [normalizedQuery, wide, searchExpanded, searchOnExpand])
 
   useEffect(() => {
     if (normalizedQuery === '') {
@@ -1088,22 +1122,23 @@ export function WorkspaceBrowser({
               </button>
             </Tooltip>
           )}
-          {multirootEnabled === true && (
-            <Tooltip label={t('multiroot.add')} side="bottom" delayMs={500}>
-              <button
-                type="button"
-                className={css.iconButton}
-                aria-label={t('multiroot.add')}
-                disabled={!directoryFlowAvailable || multirootQuery.phase === 'error'}
-                onClick={() => {
-                  setWsPickerOpen(false)
-                  setMultirootDialogRecord(null)
-                }}
-              >
-                <IconBranchOutline16 size={wide ? 16 : 18} />
-              </button>
-            </Tooltip>
-          )}
+          {/* Multiroot workspaces are a separate add path from plain Workspaces:
+              their own button opens the logical-workspace dialog directly
+              (the branch glyph matches the Rows manage affordance). */}
+          <Tooltip label={t('multiroot.add')} side="bottom" delayMs={500}>
+            <button
+              type="button"
+              className={css.iconButton}
+              aria-label={t('multiroot.add')}
+              disabled={!directoryFlowAvailable || multirootQuery.phase === 'error'}
+              onClick={() => {
+                setWsPickerOpen(false)
+                setMultirootDialogRecord(null)
+              }}
+            >
+              <IconBranchOutline16 size={wide ? 16 : 18} />
+            </button>
+          </Tooltip>
         </div>
         {/* Add flow + its error dialog (same package — direct composition). */}
         {multirootDialogRecord === undefined && <WorkspacePickFlow
@@ -1199,6 +1234,7 @@ export function WorkspaceBrowser({
                   const metadata = multirootJoin.metadataByWorkspaceId.get(workspaceId as string)
                   if (metadata !== undefined) setMultirootDialogRecord(metadata.logical)
                 }}
+                home={home}
                 t={t}
                 onRenameRequest={(workspaceId, currentTitle) => {
                   setRenameTarget({ workspaceId, currentTitle })

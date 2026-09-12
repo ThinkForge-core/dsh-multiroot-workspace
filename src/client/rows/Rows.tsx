@@ -11,11 +11,12 @@ import {
   HoverCard, IconArchiveOutline20, IconBranchOutline16, IconEditOutline16,
   IconEllipsisOutline16, IconFolderClose16, IconFolderOpen16, IconPlusOutline16,
   IconSettingsOutline16, IconTrashOutline16, IconTriangleRightFill14, Menu, StateDot,
-} from '../../vendor/primitives/index.ts'
-import type { StateDotState } from '../../vendor/primitives/index.ts'
+} from '@deepseek-ai/dsh-client-ui-primitives'
+import type { StateDotState } from '@deepseek-ai/dsh-client-ui-primitives'
+import { abbreviateHomePath } from '@deepseek-ai/dsh-client-runtime/client'
 import type { WorkspaceBrowserProps } from '../contract/slots.ts'
 import type { GroupNode, SearchResultNode, SessionNode } from '../tree.ts'
-import type { MultirootMetadata } from '../../multiroot/types.ts'
+import type { MultirootMetadata } from '../multiroot/types.ts'
 import { relativeTime } from '../tree.ts'
 import css from './Rows.module.css'
 
@@ -51,7 +52,7 @@ function createdLabel(createdAt: number, t: RowTranslate): string {
   return t('hover.created', { time: `${date} ${pad2(d.getHours())}:${pad2(d.getMinutes())}` })
 }
 
-/** Hover-card body: workspace title, full directory path, absolute creation time. */
+/** Hover-card body: workspace title, display directory path, absolute creation time. */
 function WorkspaceHoverContent({ label, cwd, createdAt, t }: {
   label: string
   cwd: string | undefined
@@ -105,10 +106,11 @@ function rowHalf(e: { clientY: number; currentTarget: HTMLElement }): 'before' |
  * @param props.onToggle - expand/collapse the group.
  * @param props.onCreate - start a frontend Session inside this Workspace.
  * @param props.drag - optional workspace-row drag wiring.
+ * @param props.home - host account home for POSIX hover-path abbreviation.
  * @param props.t - the browser root's locale seat.
  * @returns the row element.
  */
-export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, multiroot, t }: {
+export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, home, multiroot, t }: {
   group: GroupNode
   onToggle: () => void
   onCreate: () => void
@@ -116,12 +118,17 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, multi
   actions?: { rename: () => void; delete: () => void; manage?: () => void } | undefined
   /** Present only for real Workspace rows in the grouped view. */
   drag?: WorkspaceRowDragProps | undefined
+  /** Host account home; POSIX home-rooted hover paths display as `~`. */
+  home?: string | undefined
   /** Logical multiroot decoration for this Host Workspace shadow. */
   multiroot?: MultirootMetadata | undefined
   t: RowTranslate
 }) {
   const row = group
   // The ungrouped bucket has no workspace title: its label is dictionary copy.
+  // Logical multiroot rows show the logical title (the shadow Host row title is
+  // derived from the primary root and is not user-facing); the ungrouped bucket
+  // has no workspace title: its label is dictionary copy.
   const label = multiroot?.logical.title
     ?? (row.workspaceId === undefined ? t('group.ungrouped') : row.label)
   const active = group.expanded && group.containsCurrent
@@ -173,7 +180,7 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, multi
               setMenuOpen(false)
               // Unknown ids leave before the dispatch: a future menu row must
               // not inherit the destructive branch as an else fallback.
-              /* v8 ignore next -- workspaceMenuItems carries exactly these two rows today. */
+              /* v8 ignore next -- workspaceMenuItems carries exactly these rows today. */
               if (id === 'manage') {
                 actions.manage?.()
                 return
@@ -212,7 +219,12 @@ export function ProjectRowItem({ group, onToggle, onCreate, actions, drag, multi
   return (
     <HoverCard
       anchor={ownRow}
-      content={<WorkspaceHoverContent label={label} cwd={row.cwd} createdAt={row.createdAt} t={t} />}
+      content={<WorkspaceHoverContent
+        label={row.label}
+        cwd={row.cwd === undefined ? undefined : (multiroot !== undefined ? row.cwd : abbreviateHomePath(row.cwd, home))}
+        createdAt={row.createdAt}
+        t={t}
+      />}
       disabled={menuOpen}
       copyText={row.cwd}
       copyLabel={t('copy')}

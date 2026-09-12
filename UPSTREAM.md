@@ -1,12 +1,20 @@
 # ui-workspace source fork
 
-- Package: `@deepseek-ai/dsh-client-ui-workspace@0.1.0-rc.5`
-- Source commit: `47f943859b`
-- Source directory: `packages/client/ui-workspace/src/client`
-- Copied tests: all client tests except the package invariant test
+Rebased on **DeepSeek Harness `0.1.1-rc.2`** (tag `dsh-v0.1.1-rc.2`, this machine runtime):
 
-Permitted deviations are limited to client registration assembly, Workspace browser integration props, project-row multiroot metadata and actions, dictionaries, and additive dialog styles. Tree derivation, stores, Session rows, stock dialogs, picker flow, and unrelated CSS rules remain upstream-equivalent. The Chinese flat-view label is clarified from `单列表` to `全部会话`; the underlying stock flat derivation is unchanged.
+- Package: `@deepseek-ai/dsh-client-ui-workspace@0.1.1-rc.2`
+- Source directory: `packages/client/ui-workspace/src` (copied 1:1 into `src/`)
+- Upstream copy is pristine; `diff` against the runtime sources shows only the deviations below.
 
+Permitted deviations (additive feature layer `src/client/multiroot/` + integration):
+
+- `src/client/WorkspaceBrowser.tsx` — multiroot record loading/join (`useMultirootRecords`, `joinMultiroot`), a dedicated branch icon-button in the header that opens the create dialog directly, manage-row wiring, an error banner, and the `MultirootDialog` mount.
+- `src/client/rows/Rows.tsx` + `Rows.module.css` — logical-title rows with the `{count} roots · primary {alias}` meta line, taller multiroot rows, and the `Manage` row-menu action.
+- `src/client/locales.ts` — added `multiroot.*` keys (zh/en) only.
+- `src/client/WorkspaceBrowser.module.css` — `.multirootError` and a wider header-actions budget for the extra icon.
+- New `src/client/multiroot/{types,api,join,Dialogs}.ts*` feature files (fetch the `/plugins/multiroot/api` Host API).
+
+No vendored client primitives, store runtime, or subagent helper remain: the client consumes the `0.1.1-rc.2` platform rows (`@deepseek-ai/dsh-client-ui-primitives`, `@deepseek-ai/dsh-client-ui-slots`, `@deepseek-ai/cordis`, `react`, `react/jsx-runtime`) and the preloaded `@deepseek-ai/dsh-client-runtime/client` exactly like the stock package does.
 ## Vendored client primitives
 
 The reachable UI primitives were adapted from DeepSeek Harness commit `47f943859bef60e4160492346772ded9b24f765a`, from `packages/client/ui-primitives/src/{Button,HoverCard,Menu,Modal,StateDot,Tooltip}.{tsx,module.css}`. Their behavior and CSS are unchanged; imports were redirected to the local barrel at `src/client/vendor/primitives/index.ts`.

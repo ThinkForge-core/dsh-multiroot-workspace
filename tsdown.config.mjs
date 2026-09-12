@@ -8,13 +8,28 @@ import { defineConfig } from 'tsdown'
  * Build the browser half as a closure-factory artifact: the module table's
  * loader executes this file, which hands the (id, factory) pair to
  * `window.__ModuleLoader__.load`; platform modules (react, react-dom, cordis,
- * client runtime contracts) resolve through the injected `require` — they are
- * externals, never inlined.
+ * dsh-client-store, dsh-client-ui-slots, dsh-client-ui-primitives) resolve
+ * through the injected `require` — they are externals, never inlined.
+ * Everything else (clsx, wire/type layers, dsh-util-workspace-path, ...) is
+ * bundled: a require() the module table cannot answer is a runtime throw, so
+ * the only specifiers that stay imports are the requested platform rows.
  */
 const ID = 'dsh-multiroot-workspace'
 const ROOT = dirname(fileURLToPath(import.meta.url))
 const CSS_VIRTUAL_PREFIX = '\0dsh-css:'
 const CSS_VIRTUAL_SUFFIX = '.mjs'
+
+const REQUESTED = new Set([
+  'react',
+  'react/jsx-runtime',
+  'react-dom',
+  'react-dom/client',
+  '@deepseek-ai/cordis',
+  '@deepseek-ai/dsh-client-ui-slots',
+  '@deepseek-ai/dsh-client-ui-primitives',
+  '@deepseek-ai/dsh-client-runtime/client',
+])
+const isRequested = (specifier) => REQUESTED.has(specifier)
 
 export default defineConfig({
   entry: { index: 'src/client/index.ts' },
@@ -22,9 +37,8 @@ export default defineConfig({
   format: 'cjs',
   platform: 'browser',
   deps: {
-    neverBundle: [/^react(?:-dom)?(?:\/.+)?$/],
-    alwaysBundle: ['clsx'],
-    onlyBundle: false,
+    neverBundle: isRequested,
+    alwaysBundle: (specifier) => !isRequested(specifier),
   },
   banner: {
     js: `window.__ModuleLoader__.load({ id: ${JSON.stringify(ID)}, factory: function (require) { const module = { exports: {} }; const exports = module.exports;`,

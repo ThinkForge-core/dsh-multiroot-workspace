@@ -9,16 +9,17 @@ External DeepSeek Harness bundle providing logical Workspaces with multiple name
 
 ## Prerequisites
 
-The first public prerelease targets DeepSeek Harness `0.1.0-rc.6` exactly on macOS and Linux. Harness supplies the pinned Cordis, DSH client and Host services, Schemastery, React, and ReactDOM peers when it loads the plugin; consumers should install the plugin through a Harness profile instead of installing those peers into the plugin package. Source development uses Node.js `24.11.1` and pnpm `11.9.0`.
+This build targets DeepSeek Harness **`0.1.1-rc.2`** on macOS, Linux, and Android/Termux: the browser client is rebased on that version's stock `@deepseek-ai/dsh-client-ui-workspace` source (see [UPSTREAM.md](./UPSTREAM.md)). Harness supplies Cordis, DSH client/Host services, Schemastery, React, and ReactDOM when it loads the plugin; install through a Harness profile instead of installing peers into the plugin package.
 
 ## Install and start
 
-One command, from any DeepSeek Harness installation:
+From any DeepSeek Harness installation (this machine: runtime `0.1.1-rc.2`):
 
 ```sh
-cd deepseek-harness
-pnpm dsh plugin --profile web add dsh-multiroot-workspace@next
-pnpm dsh web
+cd ~/.dsh/profiles/web
+dsh plugin --profile web add /путь/к/dsh-multiroot-workspace-0.1.1-rc.2.tgz
+# перезапустить dsh web; откат:
+dsh plugin --profile web remove dsh-multiroot-workspace
 ```
 
 Then start the Web UI with `dsh web` and open `http://127.0.0.1:3080/`. The plugin disables only the stock Workspace client row while installed; Sessions, their ordinary Host Workspace membership, and all non-Workspace UI remain owned by Harness.
