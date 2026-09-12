@@ -1,4 +1,4 @@
-import type { WorkspaceView } from '@deepseek-ai/dsh-client-runtime/client'
+import type { WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { MultirootMetadata, MultirootWorkspaceRecord } from './types.ts'
 
 /** Join logical metadata to Host Workspaces without path inference. */

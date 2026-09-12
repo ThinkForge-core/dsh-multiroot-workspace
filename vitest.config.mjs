@@ -2,13 +2,21 @@ import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 
-/** Adapt DSH's published browser factory bundles to Vitest's ESM module graph. */
+/**
+ * Adapt DSH's published browser factory bundles to Vitest's ESM module graph.
+ * Every package that ships a browser half under `lib/client.js` (the
+ * `dsh-client-*` plugin packages as well as the `dsh-api-*` wire layers)
+ * emits a closure-factory artifact that registers with
+ * `window.__ModuleLoader__`; none of them can be imported as ESM directly.
+ * The load hook matches by artifact path because the transform hook keys off
+ * the factory banner, which is only readable once the file is loaded.
+ */
 function dshClientBundles() {
   return {
     name: 'dsh-client-bundles',
     enforce: 'pre',
     load(id) {
-      if (!/@deepseek-ai[/+]dsh-client-[^/]+\/lib\/client\.js$/u.test(id)) return
+      if (!/node_modules\/.*\/lib\/client\.js$/u.test(id)) return
       return readFileSync(id, 'utf8').replace(/\n\/\/# sourceMappingURL=.*$/u, '')
     },
     transform(code) {
@@ -64,6 +72,18 @@ export default defineConfig({
         find: /^@testing-library\/react(\/.*)?$/,
         replacement: `${fileURLToPath(new URL('./node_modules/@testing-library/react/', import.meta.url))}$1`,
       },
+      // The published @deepseek-ai/dsh-client-test-runtime imports these two
+      // renderer modules by repo-relative source path, which the renderer
+      // package does not ship; tests/vendor/ui-renderer carries the same files
+      // (see its header) so the suite runs outside the Harness checkout.
+      {
+        find: '@deepseek-ai/dsh-client-ui-renderer/src/client/bind.ts',
+        replacement: fileURLToPath(new URL('./tests/vendor/ui-renderer/bind.ts', import.meta.url)),
+      },
+      {
+        find: '@deepseek-ai/dsh-client-ui-renderer/src/client/scoped-slots.tsx',
+        replacement: fileURLToPath(new URL('./tests/vendor/ui-renderer/scoped-slots.tsx', import.meta.url)),
+      },
     ],
   },
   test: {
@@ -71,7 +91,10 @@ export default defineConfig({
     include: ['tests/**/*.spec.{ts,tsx}'],
     server: {
       deps: {
-        inline: [/@deepseek-ai\/dsh-client-/],
+        // Every @deepseek-ai browser half ships as a closure-factory bundle
+        // that only the dshClientBundles plugin above can turn into ESM, so
+        // all of them must pass through Vite instead of Node's loader.
+        inline: [/@deepseek-ai\//],
       },
     },
     pool: 'forks',

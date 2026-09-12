@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-client-runtime/client'
+import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import { joinMultiroot } from '../../src/client/multiroot/join.ts'
 import type { MultirootWorkspaceRecord } from '../../src/client/multiroot/types.ts'
 

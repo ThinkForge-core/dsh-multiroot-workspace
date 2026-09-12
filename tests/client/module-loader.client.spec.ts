@@ -4,9 +4,17 @@ import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 import tsdownConfig from '../../tsdown.config.mjs'
 
+/**
+ * Specifiers the client half must never require as a value. Harness
+ * `0.1.5-rc.2` removed `@deepseek-ai/dsh-client-runtime` in favour of the
+ * `dsh-api-*` controller packages, so a surviving runtime import of it is a
+ * guaranteed `client-modules: require(...) missed the module table` throw.
+ * The platform rows themselves (react, cordis, `dsh-client-store`,
+ * `dsh-client-ui-slots`, `dsh-client-ui-primitives`, `dsh-client-ui-dockkit`)
+ * are the ones the loader DOES answer — see the externals assertions below.
+ */
 const unsupportedRuntimeModules = new Set([
   '@deepseek-ai/dsh-client-runtime/client',
-  '@deepseek-ai/dsh-client-ui-primitives',
 ])
 
 async function sourceFiles(directory: string): Promise<string[]> {
@@ -94,10 +102,32 @@ describe('client bundle policy', () => {
     expect(violations).toEqual([])
   })
 
-  it('does not externalize every DSH package', () => {
-    const neverBundle = tsdownConfig.deps?.neverBundle ?? []
-    expect(Array.isArray(neverBundle)).toBe(true)
-    if (!Array.isArray(neverBundle)) return
-    expect(neverBundle.some(pattern => pattern instanceof RegExp && pattern.test('@deepseek-ai/example'))).toBe(false)
+  it('requests exactly the platform rows and bundles every other DSH package', () => {
+    const neverBundle = tsdownConfig.deps?.neverBundle
+    expect(typeof neverBundle).toBe('function')
+    if (typeof neverBundle !== 'function') return
+    const isRequested = neverBundle as (specifier: string) => boolean
+
+    // The loader's seed table: these stay `require()` calls answered at runtime.
+    for (const row of [
+      'react', 'react/jsx-runtime', 'react-dom', 'react-dom/client',
+      '@deepseek-ai/cordis',
+      '@deepseek-ai/dsh-client-store',
+      '@deepseek-ai/dsh-client-ui-slots',
+      '@deepseek-ai/dsh-client-ui-primitives',
+      '@deepseek-ai/dsh-client-ui-dockkit',
+    ]) {
+      expect(isRequested(row), row).toBe(true)
+    }
+
+    // Everything else — wire layers, type-only imports, zod, clsx — must inline:
+    // a require() the module table cannot answer is a runtime throw.
+    for (const row of [
+      '@deepseek-ai/example',
+      '@deepseek-ai/dsh-api-workspace-controller/client',
+      '@deepseek-ai/dsh-client-runtime/client',
+    ]) {
+      expect(isRequested(row), row).toBe(false)
+    }
   })
 })

@@ -59,7 +59,7 @@ try {
   assert.ok(tarballName?.endsWith('.tgz'), `pnpm pack did not print a tarball: ${packed.stdout}`)
   const tarball = isAbsolute(tarballName) ? tarballName : join(artifacts, tarballName)
 
-  const dsh = ['dlx', '@deepseek-ai/dsh@0.1.0-rc.6']
+  const dsh = ['dlx', '@deepseek-ai/dsh@0.1.5-rc.2']
   run('pnpm', [...dsh, 'plugin', '--profile', 'web', 'add', tarball], { env: { DSH_HOME: dshHome } })
   const dumped = run('pnpm', [...dsh, '--profile', 'web', '--dump-config'], { env: { DSH_HOME: dshHome } })
   assert.match(
@@ -141,7 +141,7 @@ try {
   assert.equal(await readFile(join(docsRoot, 'shared.txt'), 'utf8'), 'from packed profile')
   await assert.rejects(readFile(join(appRoot, 'shared.txt'), 'utf8'), error => error?.code === 'ENOENT')
 
-  console.log('profile tools passed: packed install, rc.6 ToolRuntime, alias isolation, no API key')
+  console.log('profile tools passed: packed install, 0.1.5-rc.2 ToolRuntime, alias isolation, no API key')
 } finally {
   try {
     await ctx?.fiber.dispose()

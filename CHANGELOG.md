@@ -4,6 +4,20 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [0.1.5-rc.2] - 2026-09-12
+
+### Changed
+
+- Rebased the browser client onto the stock ui-workspace source of **DeepSeek Harness `0.1.5-rc.2`**, which moved the browsing region to `src/client/rows/WorkspaceBrowser.*` and added the `navigation.ts` / `subagent-lineage.ts` modules; the multiroot feature layer (`src/client/multiroot/`) and its four integration points were re-applied on top unchanged in behavior.
+- Followed the core's API reshuffle: `@deepseek-ai/dsh-client-runtime` is gone, so the client now reads Sessions and Workspaces through `@deepseek-ai/dsh-api-session-controller/client` and `@deepseek-ai/dsh-api-workspace-controller/client` and its store runtime through the `@deepseek-ai/dsh-client-store` platform row.
+- Browser externals are exactly the `0.1.5-rc.2` `PLATFORM_MODULES` seed words (`react`, `react/jsx-runtime`, `react-dom`, `react-dom/client`, `@deepseek-ai/cordis`, `@deepseek-ai/dsh-client-store`, `@deepseek-ai/dsh-client-ui-slots`, `@deepseek-ai/dsh-client-ui-primitives`, `@deepseek-ai/dsh-client-ui-dockkit`); the former preloaded `@deepseek-ai/dsh-client-runtime/client` row no longer exists. The bundle requires only the five rows it actually uses.
+- Peer/dev manifest and the loader `dsh.client.inject` list now name the `0.1.5-rc.2` packages, and `engines.dsh` declares `^0.1.5-rc.2` for the market's host-compatibility check.
+- Restored the test toolchain (`vitest`, `jsdom`, `@testing-library/react`, the `0.1.5-rc.2` `@deepseek-ai/dsh-client-test-runtime`) and ported the ui-workspace specs from the new tag, plus the client-bundle, packed-manifest, and release-doc gates.
+
+### Unchanged
+
+- Server halves (`index.js`, `tools.js`) and `cordis.patch.yml` are byte-identical to `0.1.1-rc.2`; the Host services they consume (`storageDomain`, `workspaceRegistry`, `webServer`, `fs`, `shell`, `tools`, `systemPrompt`, `sandboxPolicy`) are unchanged in `0.1.5-rc.2`.
+
 ## [0.1.1-rc.2] - 2026-09-06
 
 ### Changed

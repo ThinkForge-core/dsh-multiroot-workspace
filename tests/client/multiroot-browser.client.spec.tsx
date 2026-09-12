@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import type { WorkspaceId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { commonZh } from './common-locale.ts'
-import { ProjectRowItem } from '../../src/client/upstream/rows/Rows.tsx'
-import type { GroupNode } from '../../src/client/upstream/tree.ts'
-import { zh } from '../../src/client/upstream/locales.ts'
+import { ProjectRowItem } from '../../src/client/rows/Rows.tsx'
+import type { GroupNode } from '../../src/client/tree.ts'
+import { zh } from '../../src/client/locales.ts'
 import type { MultirootMetadata } from '../../src/client/multiroot/types.ts'
 
 afterEach(cleanup)
