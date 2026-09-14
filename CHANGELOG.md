@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- Every session row now publishes a stable identity contract for DOM-augmenting extensions: `data-session-id` (the session id) and `data-session-blank` (`"true"`/`"false"`). A blank row renders a shared placeholder title (`session.new`) and hides its row menu, so a title-based lookup cannot tell two never-started sessions apart and no menu exists to append to — the id lets an extension such as `dsh-session-cleaner` offer its own delete affordance on exactly those rows. Attributes only: no visual or behavioural change.
 - `scripts/check-client-bundle.mjs` is the build-time half of the guard and now runs as the last step of `npm run build`: it reads the built bytes and refuses an artifact that does not register exactly one factory, for its own package. This is the check the regression below slipped past — typecheck, the declaration gates and a single-slot loader stub were all green while `dsh web` refused to start.
 - `tests/integration/client-bundle.spec.mjs` now keeps **every** `window.__ModuleLoader__.load` handoff instead of only the last one (which is why the inlined second factory stayed invisible), asserts a single registration before and after the factory materializes — where the real loader dies — and runs the build guard against a deliberately broken bundle to prove it can reject one.
 - The guard script ships in the package (`files`), so the published manifest's `build`/`prepare` scripts never reference a missing file.

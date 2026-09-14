@@ -998,6 +998,8 @@ function SessionNodeItem({ node, currentId, now, onOpen, onRename, onFork, onArc
 		className: clsx(Rows_module_css_default.sessionRow, selected && Rows_module_css_default.selected, menuOpen && Rows_module_css_default.menuOpen, flat && !showStatus && Rows_module_css_default.flatSessionRowWithoutStatus, drag?.marker === "before" && Rows_module_css_default.dropBefore, drag?.marker === "after" && Rows_module_css_default.dropAfter),
 		role: "treeitem",
 		"aria-selected": selected,
+		"data-session-id": node.id,
+		"data-session-blank": row.blank ? "true" : "false",
 		onClick: () => {
 			onOpen(node.id);
 		},

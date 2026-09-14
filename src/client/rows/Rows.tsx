@@ -449,6 +449,12 @@ export function SessionNodeItem({
       )}
       role="treeitem"
       aria-selected={selected}
+      // Stable identity contract for DOM-augmenting extensions
+      // (dsh-session-cleaner). A blank row renders a shared placeholder title,
+      // so its id — never its rendered text — is the reliable handle on the
+      // session. Published unconditionally, for every session row.
+      data-session-id={node.id}
+      data-session-blank={row.blank ? 'true' : 'false'}
       onClick={() => { onOpen(node.id) }}
       draggable={drag !== undefined}
       onDragStart={drag === undefined
