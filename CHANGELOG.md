@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- `scripts/check-client-bundle.mjs` is the build-time half of the guard and now runs as the last step of `npm run build`: it reads the built bytes and refuses an artifact that does not register exactly one factory, for its own package. This is the check the regression below slipped past — typecheck, the declaration gates and a single-slot loader stub were all green while `dsh web` refused to start.
+- `tests/integration/client-bundle.spec.mjs` now keeps **every** `window.__ModuleLoader__.load` handoff instead of only the last one (which is why the inlined second factory stayed invisible), asserts a single registration before and after the factory materializes — where the real loader dies — and runs the build guard against a deliberately broken bundle to prove it can reject one.
+- The guard script ships in the package (`files`), so the published manifest's `build`/`prepare` scripts never reference a missing file.
+
 ### Fixed
 
 - `src/client/tree.ts` imported the Session Controller types with an inline-specifier form (`import { type A, type B } from '...'`), which the bundler lowered to a side-effect import of `@deepseek-ai/dsh-api-session-controller/client` and inlined that package's own self-registering client bundle. At runtime the module table then saw `@deepseek-ai/dsh-api-session-controller` register twice and refused to boot with `client-modules: duplicate factory registration ... (bundle executed twice without invalidate?)`. Switching the declaration to `import type { ... }` drops it from the graph; the bundle now registers only `dsh-multiroot-workspace` (286 kB → 147 kB) while keeping the same five platform rows.

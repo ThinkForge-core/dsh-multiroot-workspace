@@ -25,7 +25,8 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "build": "tsdown --config tsdown.config.mjs && cp dist/index.cjs client.js",
+    "build": "tsdown --config tsdown.config.mjs && cp dist/index.cjs client.js && node scripts/check-client-bundle.mjs",
+    "check:client-bundle": "node scripts/check-client-bundle.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --config vitest.config.mjs",
     "test:browser": "node tests/browser/multiroot-ui.spec.mjs",
@@ -45,7 +46,8 @@
     "index.js",
     "tools.js",
     "client.js",
-    "cordis.patch.yml"
+    "cordis.patch.yml",
+    "scripts/check-client-bundle.mjs"
   ],
   "exports": {
     ".": "./index.js",

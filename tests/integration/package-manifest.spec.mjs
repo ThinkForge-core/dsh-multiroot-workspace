@@ -72,6 +72,7 @@ try {
     'package/cordis.patch.yml',
     'package/index.js',
     'package/package.json',
+    'package/scripts/check-client-bundle.mjs',
     'package/tools.js',
   ])
   const packedLicense = spawnSync('tar', ['-xOzf', tarball, 'package/LICENSE'], { encoding: 'utf8' })
