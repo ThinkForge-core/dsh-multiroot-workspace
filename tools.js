@@ -446,7 +446,17 @@ export function apply(ctx, config) {
       const current = currentRoot(ctx, session)
       const lines = workspace.roots.map((root) =>
         `- ${root.alias}${root.primary ? ' (primary)' : ''}${root.alias === current ? ' (current)' : ''} → ${root.path}`)
-      return `当前逻辑工作区 <${workspace.title}>，包含以下根：\n${lines.join('\n')}\n\n内建 read/write/edit/bash/搜索作用于 primary 根（即会话 cwd）；访问其他根请使用 ws_* 工具并指定 root 参数。`
+      // Imperative routing rule, not environment description. The built-in
+      // tools resolve paths against the session workspace only, so a call that
+      // targets another root does not merely lack an alias — the write is
+      // refused by the sandbox. Stating that refusal, and naming the
+      // replacement, is what stops the model from answering a denial with an
+      // approval request instead of the ws_* call. Keep it short: this text is
+      // paid on every turn.
+      return `当前逻辑工作区 <${workspace.title}>，包含以下根：\n${lines.join('\n')}\n\n`
+        + '内建 read/write/edit/bash/glob/grep 只作用于 primary 根（会话 cwd）。'
+        + '要访问其他根，一律改用 ws_read/ws_write/ws_edit/ws_glob/ws_grep/ws_bash 并传 root 别名。'
+        + '向 primary 根之外的写入或修改会被沙箱拒绝——这不是权限问题，不要申请批准，改用 ws_write/ws_edit/ws_bash。'
     },
   })
 }
