@@ -11,7 +11,7 @@ const [manifestText, readme, upstream, changelog, license] = await Promise.all([
 ])
 const manifest = JSON.parse(manifestText)
 /** The Harness release this build is rebased on and verified against. */
-const DSH_VERSION = '0.1.5-rc.2'
+const DSH_VERSION = '0.1.7-rc.2'
 
 assert.equal(manifest.version, DSH_VERSION)
 assert.equal(manifest.description, 'Multi-root logical Workspaces for DeepSeek Harness')
@@ -58,7 +58,7 @@ assert.match(readme, /Purge clears its Session selections and shadow mapping but
 assert.match(readme, /a later new Session whose cwd matches the primary root creates or adopts a Host shadow/)
 assert.match(readme, /macOS, Linux, and Android\/Termux/)
 // The consumer README must never advertise the replaced runtime package; the
-// provenance file mentions it only to record that 0.1.5-rc.2 removed it.
+// provenance file mentions it only to record that 0.1.7-rc.2 removed it.
 assert.doesNotMatch(readme, /@deepseek-ai\/dsh-client-runtime/)
 assert.doesNotMatch(upstream, /`@deepseek-ai\/dsh-client-runtime`[\s\S]{0,80}(?:peerDependencies|devDependencies|"0\.1)/)
 assert.doesNotMatch(readme, /0\.1\.[01]-rc\./)
@@ -67,7 +67,7 @@ assert.doesNotMatch(readme, /0\.1\.[01]-rc\./)
 assert.doesNotMatch(`${readme}\n${upstream}`, /0\.1\.0-rc\./)
 
 assert.match(upstream, new RegExp(`Harness \`${DSH_VERSION.replaceAll('.', '\\.')}\``))
-assert.match(upstream, /18 files and 250 tests\s+passed/)
+assert.match(upstream, /20 files and 474 tests\s+passed/)
 assert.match(upstream, /Test harness notes/)
 assert.match(changelog, /^## \[Unreleased\]$/m)
 assert.match(changelog, new RegExp(`^## \\[${DSH_VERSION.replaceAll('.', '\\.')}\\] - \\d{4}-\\d{2}-\\d{2}$`, 'm'))

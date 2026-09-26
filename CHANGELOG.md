@@ -13,7 +13,20 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `tools.js` called `ctx.shell.run(...)`, a Host method the `0.1.7-rc.2` `shell` service no longer serves (it exposes `resolve()` plus `execute()` → `ShellExecution.result()`), so `ws_bash`, `ws_glob` and `ws_grep` failed on every invocation with `Error: ctx.shell.run is not a function` while the rest of the row served normally — the three tools were dead, not the plugin. All three call sites now use the `execute()`/`result()` pair and translate a resolved `aborted` outcome into an abort, mirroring `tool-bash`; `tests/tools/tools.spec.ts` queues fake executions behind the new `ctx.shell.execute` double.
 - `src/client/tree.ts` imported the Session Controller types with an inline-specifier form (`import { type A, type B } from '...'`), which the bundler lowered to a side-effect import of `@deepseek-ai/dsh-api-session-controller/client` and inlined that package's own self-registering client bundle. At runtime the module table then saw `@deepseek-ai/dsh-api-session-controller` register twice and refused to boot with `client-modules: duplicate factory registration ... (bundle executed twice without invalidate?)`. Switching the declaration to `import type { ... }` drops it from the graph; the bundle now registers only `dsh-multiroot-workspace` (286 kB → 147 kB) while keeping the same five platform rows.
+
+## [0.1.7-rc.2] - 2026-09-24
+
+### Changed
+
+- Rebased the browser client onto the stock ui-workspace source of **DeepSeek Harness `0.1.7-rc.2`**. That version added `pin-order.ts`, `shortcuts.ts`, `rows/AnimatedRows.*`, and `session-actions/*`, dropped `subagent-lineage.ts`, and replaced the removed `useSessionPendingInteraction` global standard prop with `useSessionStatus`, whose snapshot values are `SessionStatus` records (`{ running, pendingInteraction, completionUnread }`) rather than bare pending interactions. The multiroot feature layer (`src/client/multiroot/`) and its six integration points were re-applied on top: the logical title and the `{count} roots · primary {alias}` meta line in `ProjectRowItem`, the `Manage` row-menu action, the header add button, the error banner, the manage wiring, and the `MultirootDialog` mount.
+- The `tests/client/upstream/` port was replaced with the `0.1.7-rc.2` ui-workspace specs, including the new `animated-rows`, `session-actions`, and `shortcuts` suites. Every spec that imports a monorepo-relative source path is aliased or vendored; see [UPSTREAM.md](./UPSTREAM.md) § Test harness notes.
+- Peer/dev manifest and the loader `dsh.client.inject` list now name the `0.1.7-rc.2` packages, including the new `@deepseek-ai/dsh-agent`, `dsh-client-shortcuts`, `dsh-jobs`, `dsh-subagent`, and `dsh-util-values` edges, and `engines.dsh` declares `^0.1.7-rc.2` for the market's host-compatibility check.
+
+### Unchanged
+
+- Server halves (`index.js`, `tools.js`) and `cordis.patch.yml` are untouched by the rebase; the Host services they consume (`storageDomain`, `workspaceRegistry`, `webServer`, `fs`, `shell`, `tools`, `systemPrompt`, `sandboxPolicy`) keep the same signatures in `0.1.7-rc.2`, and the host-side unit suites (`tests/host`, `tests/tools`) pass unchanged. **Corrected in Unreleased:** the `shell` entry was wrong — `ctx.shell.run()` was replaced by `resolve()`/`execute()` in `0.1.7-rc.2` (see Fixes).
 
 ## [0.1.5-rc.2] - 2026-09-12
 

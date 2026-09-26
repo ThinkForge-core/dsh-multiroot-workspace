@@ -9,15 +9,15 @@ External DeepSeek Harness bundle providing logical Workspaces with multiple name
 
 ## Prerequisites
 
-This build targets DeepSeek Harness **`0.1.5-rc.2`** on macOS, Linux, and Android/Termux: the browser client is rebased on that version's stock `@deepseek-ai/dsh-client-ui-workspace` source (see [UPSTREAM.md](./UPSTREAM.md)). Harness supplies Cordis, DSH client/Host services, Schemastery, React, and ReactDOM when it loads the plugin; install through a Harness profile instead of installing peers into the plugin package.
+This build targets DeepSeek Harness **`0.1.7-rc.2`** on macOS, Linux, and Android/Termux: the browser client is rebased on that version's stock `@deepseek-ai/dsh-client-ui-workspace` source (see [UPSTREAM.md](./UPSTREAM.md)). Harness supplies Cordis, DSH client/Host services, Schemastery, React, and ReactDOM when it loads the plugin; install through a Harness profile instead of installing peers into the plugin package.
 
 ## Install and start
 
-From any DeepSeek Harness installation (this machine: runtime `0.1.5-rc.2`):
+From any DeepSeek Harness installation (this machine: runtime `0.1.7-rc.2`):
 
 ```sh
 cd ~/.dsh/profiles/web
-dsh plugin --profile web add /путь/к/dsh-multiroot-workspace-0.1.5-rc.2.tgz
+dsh plugin --profile web add /путь/к/dsh-multiroot-workspace-0.1.7-rc.2.tgz
 # перезапустить dsh web; откат:
 dsh plugin --profile web remove dsh-multiroot-workspace
 ```
@@ -62,9 +62,9 @@ pnpm exec playwright install chromium
 pnpm run test:browser
 ```
 
-The browser check packs the current plugin, creates an isolated temporary DSH home, installs it through the exact public `@deepseek-ai/dsh@0.1.5-rc.2` CLI, and starts Web on a random loopback port. It exercises the public UI with stable fixture titles, aliases, and path suffixes, then stops the server and removes the temporary profile and directories in `finally`; no sibling Harness checkout or manually managed `DSH_WEB_URL` is used.
+The browser check packs the current plugin, creates an isolated temporary DSH home, installs it through the exact public `@deepseek-ai/dsh@0.1.7-rc.2` CLI, and starts Web on a random loopback port. It exercises the public UI with stable fixture titles, aliases, and path suffixes, then stops the server and removes the temporary profile and directories in `finally`; no sibling Harness checkout or manually managed `DSH_WEB_URL` is used.
 
-The unit suite runs against the published `0.1.5-rc.2` packages. Two published-artifact gaps shape that setup: the released `@deepseek-ai/dsh-client-test-runtime` imports renderer modules by repo-relative source path (vendored under `tests/vendor/ui-renderer/`, aliased in `vitest.config.mjs`), and the released `@deepseek-ai/dsh-client-*` bundles declare no third-party dependencies (pinned in `devDependencies`). Both are documented in [UPSTREAM.md](./UPSTREAM.md) § Test harness notes; neither affects the shipped package.
+The unit suite runs against the published `0.1.7-rc.2` packages. Four published-artifact gaps shape that setup: the released `@deepseek-ai/dsh-client-test-runtime` imports renderer and session-controller modules by repo-relative source path (vendored under `tests/vendor/ui-renderer/` and `tests/vendor/api-session-controller/`, aliased in `vitest.config.mjs`); jsdom defines no `ResizeObserver`, which the released primitives' tooltip/marquee fit path constructs (the monorepo's stub is vendored as `tests/vendor/test-dom-environment.ts` and listed under `setupFiles`); the released `@deepseek-ai/dsh-client-*` bundles declare no third-party dependencies (pinned in `devDependencies`); and the common-namespace locale dictionaries they expect must be carried locally as `tests/client/common-locale.ts`, because a deep `.../locale/src/locales/*.ts` import resolves to nothing outside a Harness checkout. All four are documented in [UPSTREAM.md](./UPSTREAM.md) § Test harness notes; none affects the shipped package.
 
 `pnpm run build` ends with `scripts/check-client-bundle.mjs`, which reads the built `client.js` and refuses an artifact that does not register exactly one module-table factory, for this package. A browser bundle is loaded as one graph row: if the build inlines another self-registering client package — which a type-only import written as `import { type X } from '<pkg>/client'` causes, because the bundler lowers it to a side-effect import — the loader sees that package register twice and `dsh web` stops with `client-modules: duplicate factory registration`. Typecheck and the declaration gates cannot see this, so the built bytes are checked directly; `tests/integration/client-bundle.spec.mjs` keeps every `window.__ModuleLoader__.load` handoff (not just the last one) and runs the same guard against a deliberately broken bundle.
 
@@ -76,7 +76,7 @@ The Host API is served under `/plugins/multiroot/api`. Creating a logical Worksp
 
 `ws_cd` stores the current-root selection as plugin-owned state keyed by Session id, so it survives plugin and Harness restarts without adding a custom Session event. A Session with no stored selection uses its logical Workspace's primary root. Deleting or purging that logical Workspace clears its selections. Forked Sessions do not inherit the source Session's selection and therefore begin on the primary root.
 
-The selection table is additive within storage-domain version 4. Harness `0.1.5-rc.2` has no domain migration API and rejects a changed version stamp, while its supported backends safely materialize a newly declared table at the existing version; this preserves previously stored logical Workspaces.
+The selection table is additive within storage-domain version 4. Harness `0.1.7-rc.2` has no domain migration API and rejects a changed version stamp, while its supported backends safely materialize a newly declared table at the existing version; this preserves previously stored logical Workspaces.
 
 ## Model tools and permissions
 

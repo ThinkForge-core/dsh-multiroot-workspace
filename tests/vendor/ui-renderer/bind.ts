@@ -1,5 +1,5 @@
 /**
- * Vendored from DeepSeek Harness 0.1.5-rc.2, source path
+ * Vendored from DeepSeek Harness 0.1.7-rc.2, source path
  * `packages/client/ui-renderer/src/client/bind.ts`, MIT (see LICENSES/).
  *
  * The published `@deepseek-ai/dsh-client-test-runtime` imports

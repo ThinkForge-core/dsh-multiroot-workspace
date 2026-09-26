@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const DSH_VERSION = '0.1.5-rc.2'
+const DSH_VERSION = '0.1.7-rc.2'
 const PNPM_VERSION = '11.9.0'
 const projectRoot = fileURLToPath(new URL('../..', import.meta.url))
 
@@ -31,7 +31,7 @@ async function run(command, args, options) {
 async function waitForServer(child, output) {
   const deadline = Date.now() + 60_000
   while (Date.now() < deadline) {
-    // Harness 0.1.5-rc.2 announces the AUTHENTICATED url (`?token=…`, optionally
+    // Harness 0.1.7-rc.2 announces the AUTHENTICATED url (`?token=…`, optionally
     // followed by a `(LAN: …)` note), so the whole non-space token is the target.
     const match = output().match(/dsh web: (http:\/\/127\.0\.0\.1:\d+\S*)/)
     if (match) {

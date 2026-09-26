@@ -72,10 +72,10 @@ export default defineConfig({
         find: /^@testing-library\/react(\/.*)?$/,
         replacement: `${fileURLToPath(new URL('./node_modules/@testing-library/react/', import.meta.url))}$1`,
       },
-      // The published @deepseek-ai/dsh-client-test-runtime imports these two
-      // renderer modules by repo-relative source path, which the renderer
-      // package does not ship; tests/vendor/ui-renderer carries the same files
-      // (see its header) so the suite runs outside the Harness checkout.
+      // The published @deepseek-ai/dsh-client-test-runtime imports these
+      // modules by repo-relative source path, which their packages do not
+      // ship; tests/vendor carries the same files (see their headers) so the
+      // suite runs outside the Harness checkout.
       {
         find: '@deepseek-ai/dsh-client-ui-renderer/src/client/bind.ts',
         replacement: fileURLToPath(new URL('./tests/vendor/ui-renderer/bind.ts', import.meta.url)),
@@ -84,11 +84,16 @@ export default defineConfig({
         find: '@deepseek-ai/dsh-client-ui-renderer/src/client/scoped-slots.tsx',
         replacement: fileURLToPath(new URL('./tests/vendor/ui-renderer/scoped-slots.tsx', import.meta.url)),
       },
+      {
+        find: '@deepseek-ai/dsh-api-session-controller/src/client/scope.ts',
+        replacement: fileURLToPath(new URL('./tests/vendor/api-session-controller/scope.ts', import.meta.url)),
+      },
     ],
   },
   test: {
     environment: 'node',
     include: ['tests/**/*.spec.{ts,tsx}'],
+    setupFiles: ['./tests/vendor/test-dom-environment.ts'],
     server: {
       deps: {
         // Every @deepseek-ai browser half ships as a closure-factory bundle
