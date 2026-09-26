@@ -358,13 +358,15 @@ export function apply(ctx, config) {
       const workdir = args.workdir === undefined
         ? workdirRootPath
         : ctx.fs.processPath(await resolveWithinRoot(ctx, workdirRoot, args.workdir, exec.signal))
-      const result = await ctx.shell.run(ctx.shell.resolve({
+      const execution = await ctx.shell.execute(ctx.shell.resolve({
         command: args.command,
         workdir,
         ...(args.timeoutMs === undefined ? {} : { timeoutMs: args.timeoutMs }),
         sandboxPolicy: policy,
         signal: exec.signal,
       }))
+      const result = await execution.result()
+      if (result.aborted === true) throw new DOMException('ws_bash aborted', 'AbortError')
       const parts = []
       if (result.stdout.text !== '') parts.push(result.stdout.text)
       if (result.stderr.text !== '') parts.push(result.stderr.text)
@@ -390,12 +392,13 @@ export function apply(ctx, config) {
       const searchTarget = await resolveWithinRoot(ctx, root, args.path ?? '.', exec.signal)
       const searchDir = ctx.fs.processPath(searchTarget)
       const command = `rg --files -g ${shq(args.pattern)} ${shq(searchDir)}`
-      const result = await ctx.shell.run(ctx.shell.resolve({
+      const execution = await ctx.shell.execute(ctx.shell.resolve({
         command,
         workdir: root.path,
         sandboxPolicy: policyFor(ctx, exec, root),
         signal: exec.signal,
       }))
+      const result = await execution.result()
       assertSearchSucceeded(result)
       const lines = result.stdout.text.split('\n').filter((line) => line.length > 0)
       const capped = lines.slice(0, SEARCH_LINE_CAP)
@@ -421,12 +424,13 @@ export function apply(ctx, config) {
       const searchTarget = await resolveWithinRoot(ctx, root, args.path ?? '.', exec.signal)
       const searchDir = ctx.fs.processPath(searchTarget)
       const command = `rg --line-number --no-heading --color never -e ${shq(args.query)} ${shq(searchDir)}`
-      const result = await ctx.shell.run(ctx.shell.resolve({
+      const execution = await ctx.shell.execute(ctx.shell.resolve({
         command,
         workdir: root.path,
         sandboxPolicy: policyFor(ctx, exec, root),
         signal: exec.signal,
       }))
+      const result = await execution.result()
       assertSearchSucceeded(result)
       const lines = result.stdout.text.split('\n').filter((line) => line.length > 0)
       const capped = lines.slice(0, SEARCH_LINE_CAP)

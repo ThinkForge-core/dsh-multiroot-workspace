@@ -103,9 +103,14 @@ async function createToolsHarness(options: {
     writeText: vi.fn(async () => ({ operation: 'replace', version: 'v2' })),
     editText: vi.fn(async () => ({ version: 'v3' })),
   }
+  const queuedShellResults: Array<FakeShellResult | Error> = []
   const shell = {
     resolve: vi.fn((request: object) => Object.freeze({ ...request })),
-    run: vi.fn<(request: object) => Promise<FakeShellResult>>(async () => shellResult()),
+    execute: vi.fn(async (_request: object) => {
+      const next = queuedShellResults.shift()
+      if (next instanceof Error) throw next
+      return { result: async () => next ?? shellResult() }
+    }),
   }
   const sandboxPolicy = { resolve: vi.fn(() => ({ mode: 'workspace-write' })) }
   const ctx = {
@@ -141,6 +146,8 @@ async function createToolsHarness(options: {
   return {
     controller, ctx, exec, fs, multirootRegistry, observed, sandboxPolicy,
     session, shell, tool, waterfallValues,
+    queueShellResult: (result: FakeShellResult) => { queuedShellResults.push(result) },
+    queueShellFailure: (error: Error) => { queuedShellResults.push(error) },
   }
 }
 
@@ -310,7 +317,7 @@ describe('search tools', () => {
       path === 'linked-search' ? target('/outside/search', request.cwd) : target(path, request.cwd))
     await expect(harness.tool('ws_glob').execute({ root: 'docs', pattern: '**/*', path: 'linked-search' }, harness.exec))
       .rejects.toThrow('escapes the addressed root')
-    expect(harness.shell.run).not.toHaveBeenCalled()
+    expect(harness.shell.execute).not.toHaveBeenCalled()
   })
 
   it('uses the filesystem provider process path for a canonical search directory', async () => {
@@ -325,7 +332,7 @@ describe('search tools', () => {
   it.each(['ws_glob', 'ws_grep'])('%s caps output at 200 lines', async (name) => {
     const harness = await createToolsHarness()
     const lines = Array.from({ length: 203 }, (_, index) => `line-${index + 1}`)
-    harness.shell.run.mockResolvedValueOnce(shellResult({ stdout: { text: lines.join('\n') } }))
+    harness.queueShellResult(shellResult({ stdout: { text: lines.join('\n') } }))
     const args = name === 'ws_glob' ? { pattern: '**/*' } : { query: 'match' }
     const output = await harness.tool(name).execute(args, harness.exec)
     expect(output.split('\n')).toHaveLength(201)
@@ -335,14 +342,14 @@ describe('search tools', () => {
 
   it.each(['ws_glob', 'ws_grep'])('%s returns an empty string for no matches', async (name) => {
     const harness = await createToolsHarness()
-    harness.shell.run.mockResolvedValueOnce(shellResult({ exitCode: 1 }))
+    harness.queueShellResult(shellResult({ exitCode: 1 }))
     const args = name === 'ws_glob' ? { pattern: '**/*.none' } : { query: 'absent' }
     await expect(harness.tool(name).execute(args, harness.exec)).resolves.toBe('')
   })
 
   it.each(['ws_glob', 'ws_grep'])('%s rejects non-match command failures', async (name) => {
     const harness = await createToolsHarness()
-    harness.shell.run.mockResolvedValueOnce(shellResult({ stderr: { text: 'rg: permission denied' }, exitCode: 2 }))
+    harness.queueShellResult(shellResult({ stderr: { text: 'rg: permission denied' }, exitCode: 2 }))
     const args = name === 'ws_glob' ? { pattern: '**/*' } : { query: 'match' }
     await expect(harness.tool(name).execute(args, harness.exec)).rejects.toThrow('rg: permission denied')
   })
@@ -354,7 +361,7 @@ describe('search tools', () => {
     [{ exitCode: null, signal: 'SIGTERM', timedOut: false, aborted: false }, 'ripgrep search terminated by SIGTERM'],
   ])('rejects a resolved interrupted search result: %s', async (outcome, message) => {
     const harness = await createToolsHarness()
-    harness.shell.run.mockResolvedValueOnce(shellResult({ stderr: { text: 'rg diagnostic' }, ...outcome }))
+    harness.queueShellResult(shellResult({ stderr: { text: 'rg diagnostic' }, ...outcome }))
     await expect(harness.tool('ws_grep').execute({ query: 'match' }, harness.exec))
       .rejects.toThrow(`${message}: rg diagnostic`)
   })
@@ -362,7 +369,7 @@ describe('search tools', () => {
   it.each(['ws_glob', 'ws_grep'])('%s forwards cancellation and propagates an aborted shell call', async (name) => {
     const harness = await createToolsHarness()
     harness.controller.abort()
-    harness.shell.run.mockRejectedValueOnce(new DOMException('cancelled', 'AbortError'))
+    harness.queueShellFailure(new DOMException('cancelled', 'AbortError'))
     const args = name === 'ws_glob' ? { pattern: '**/*' } : { query: 'match' }
     await expect(harness.tool(name).execute(args, harness.exec)).rejects.toMatchObject({ name: 'AbortError' })
     expect(harness.shell.resolve).toHaveBeenCalledWith(expect.objectContaining({ signal: harness.exec.signal }))
@@ -374,7 +381,7 @@ describe('bash policy modes', () => {
     const harness = await createToolsHarness()
     await harness.tool('ws_bash').execute({ root: 'docs', command: 'pwd' }, harness.exec)
     const resolvedRequest = harness.shell.resolve.mock.results[0]?.value
-    expect(harness.shell.run.mock.calls).toEqual([[resolvedRequest]])
+    expect(harness.shell.execute.mock.calls).toEqual([[resolvedRequest]])
     expect(resolvedRequest).toEqual({
       command: 'pwd',
       workdir: '/workspace/docs',
@@ -387,14 +394,14 @@ describe('bash policy modes', () => {
     const harness = await createToolsHarness({ config: { crossRootBash: 'off' } })
     await expect(harness.tool('ws_bash').execute({ roots: ['app', 'docs'], command: 'pwd' }, harness.exec))
       .rejects.toThrow('crossRootBash=off')
-    expect(harness.shell.run).not.toHaveBeenCalled()
+    expect(harness.shell.execute).not.toHaveBeenCalled()
   })
 
   it('fences ancestor mode to the tightest common ancestor', async () => {
     const harness = await createToolsHarness({ config: { crossRootBash: 'ancestor' } })
     await harness.tool('ws_bash').execute({ roots: ['app', 'docs'], command: 'pwd' }, harness.exec)
     const resolvedRequest = harness.shell.resolve.mock.results[0]?.value
-    expect(harness.shell.run.mock.calls).toEqual([[resolvedRequest]])
+    expect(harness.shell.execute.mock.calls).toEqual([[resolvedRequest]])
     expect(resolvedRequest).toEqual({
       command: 'pwd',
       workdir: '/workspace/app',
@@ -407,7 +414,7 @@ describe('bash policy modes', () => {
     const harness = await createToolsHarness({ config: { crossRootBash: 'unfenced' } })
     const output = await harness.tool('ws_bash').execute({ roots: ['app', 'docs'], command: 'pwd' }, harness.exec)
     const resolvedRequest = harness.shell.resolve.mock.results[0]?.value
-    expect(harness.shell.run.mock.calls).toEqual([[resolvedRequest]])
+    expect(harness.shell.execute.mock.calls).toEqual([[resolvedRequest]])
     expect(resolvedRequest).toEqual({
       command: 'pwd',
       workdir: '/workspace/app',
@@ -422,14 +429,14 @@ describe('bash policy modes', () => {
     const harness = await createToolsHarness({ config: { crossRootBash: 'ancestor' } })
     await expect(harness.tool('ws_bash').execute({ roots: [], command: 'pwd' }, harness.exec))
       .rejects.toThrow('roots')
-    expect(harness.shell.run).not.toHaveBeenCalled()
+    expect(harness.shell.execute).not.toHaveBeenCalled()
   })
 
   it('rejects aliases outside the logical Workspace before shell invocation', async () => {
     const harness = await createToolsHarness({ config: { crossRootBash: 'ancestor' } })
     await expect(harness.tool('ws_bash').execute({ roots: ['app', 'secret'], command: 'pwd' }, harness.exec))
       .rejects.toThrow('未知根 "secret"')
-    expect(harness.shell.run).not.toHaveBeenCalled()
+    expect(harness.shell.execute).not.toHaveBeenCalled()
   })
 
   it('rejects absolute or relative workdirs that escape the addressed root', async () => {
@@ -450,13 +457,13 @@ describe('bash policy modes', () => {
       path === 'linked-workdir' ? target('/outside/workdir', request.cwd) : target(path, request.cwd))
     await expect(harness.tool('ws_bash').execute({ ...roots, workdir: 'linked-workdir', command: 'pwd' }, harness.exec))
       .rejects.toThrow('escapes the addressed root')
-    expect(harness.shell.run).not.toHaveBeenCalled()
+    expect(harness.shell.execute).not.toHaveBeenCalled()
   })
 
   it('uses the filesystem provider process path for an explicit canonical workdir', async () => {
     const harness = await createToolsHarness()
     harness.fs.processPath.mockReturnValueOnce('/provider/docs workdir')
     await harness.tool('ws_bash').execute({ root: 'docs', workdir: 'workdir', command: 'pwd' }, harness.exec)
-    expect(harness.shell.run.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ workdir: '/provider/docs workdir' }))
+    expect(harness.shell.execute.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ workdir: '/provider/docs workdir' }))
   })
 })
